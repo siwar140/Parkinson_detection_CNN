@@ -1,0 +1,14 @@
+.git
+.gitignore
+.venv
+venv
+__pycache__
+*.pyc
+*.db
+*.sqlite3
+backend/uploads/*
+backend/models_ia/*
+frontend/node_modules
+frontend/dist
+backups
+*.md

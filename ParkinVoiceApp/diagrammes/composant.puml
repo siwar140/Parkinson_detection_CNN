@@ -1,0 +1,114 @@
+@startuml Components_Analyse
+skinparam backgroundColor #FAFAFA
+skinparam componentStyle rectangle
+skinparam ArrowColor #4B5563
+skinparam ComponentBorderColor #054a72
+skinparam ComponentBackgroundColor #EEF2FF
+skinparam DatabaseBorderColor #7d0f56
+skinparam DatabaseBackgroundColor #d26faf
+skinparam NoteBackgroundColor #FFF7ED
+skinparam PackageBackgroundColor #F8FAFC
+
+title Diagramme de Composantes — Module Analyse ParkinVoice
+
+' ==================== FRONTEND ====================
+package "Frontend (React + Vite)" {
+
+  package "Pages / Vues" {
+    component "Consultation.jsx\n[Enregistrement Micro + Fichier\nSélection Patient + Notes\nLancer Analyse]" as ConsultationView
+    component "Analyse.jsx\n[Upload fichier simple\nAffichage résultat basique]" as AnalyseView
+  }
+
+  package "Composants UI" {
+    component "AudioVisualizer\n(Canvas + Web Audio API)" as Visualizer
+    component "NewPatientModal\n(Formulaire création patient)" as PatientModal
+    component "ResultCard\n(Résultat + Biomarqueurs + Partage)" as ResultCard
+  }
+
+  package "Services" {
+    component "api.js\n[predictAudio()\ngetPatients()\ncreatPatient()\nsharePrediction()]" as ApiService
+    component "audioUtils.js\n[convertToWav()]" as AudioUtils
+  }
+
+  package "Context" {
+    component "AuthContext.jsx\n[token JWT, user, role]" as AuthCtx
+  }
+}
+
+' ==================== BACKEND ====================
+package "Backend (FastAPI)" {
+
+  package "Routes API" {
+    component "POST /predict\n(prediction.py)" as PredictRoute
+    component "POST /prediction/{id}/share\n(prediction.py)" as ShareRoute
+    component "GET /prediction/history\n(prediction.py)" as HistoryRoute
+    component "POST /patients\n(patients.py)" as PatientsRoute
+    component "GET /patient/predictions\n(patients.py)" as PatPredRoute
+  }
+
+  package "Auth" {
+    component "auth.py\n[get_current_user()\nJWT Bearer]" as AuthMiddleware
+  }
+
+  package "Core IA (NE PAS MODIFIER)" {
+    component "ml_inference.py\n[predict(file_path)]" as MLInference
+    component "Modèle CNN (.h5 / .pkl)" as CNNModel
+    component "Preprocessing Audio\n[librosa / features extraction]" as Preprocessing
+  }
+
+  package "Models ORM (SQLAlchemy)" {
+    component "Prediction\n[id, result, confidence,\njitter, shimmer, hnr, f0\nis_shared_with_patient]" as PredModel
+    component "Patient\n[id, first_name, last_name\nhashed_password, is_active]" as PatModel
+    component "User (Médecin)\n[id, email, role]" as UserModel
+  }
+}
+
+' ==================== STOCKAGE ====================
+database "Base de données\nSQLite / PostgreSQL" as DB
+database "Stockage temporaire\n/tmp/parkinvoice_uploads" as TmpStorage
+
+' ==================== CONNEXIONS ====================
+
+' Frontend interne
+ConsultationView --> Visualizer : utilise
+ConsultationView --> PatientModal : ouvre
+ConsultationView --> ResultCard : affiche
+ConsultationView --> ApiService : appelle
+ConsultationView --> AudioUtils : convertit webm→wav
+AnalyseView --> ApiService : appelle
+ApiService --> AuthCtx : JWT token
+
+' Frontend → Backend
+ApiService ..> PredictRoute : POST /predict\nmultipart/form-data
+ApiService ..> ShareRoute : POST /prediction/{id}/share
+ApiService ..> HistoryRoute : GET /prediction/history
+ApiService ..> PatientsRoute : POST /patients
+ApiService ..> PatPredRoute : GET /patient/predictions
+
+' Backend interne
+PredictRoute --> AuthMiddleware : vérifie JWT
+PredictRoute --> MLInference : predict(tmp_path)
+PredictRoute --> PredModel : crée et sauvegarde
+PredictRoute --> PatModel : résout patient
+ShareRoute --> AuthMiddleware : vérifie JWT
+ShareRoute --> PredModel : is_shared_with_patient = True
+ShareRoute --> PatModel : vérifie hashed_password
+
+' Core IA
+MLInference --> Preprocessing : prétraite le fichier audio
+MLInference --> CNNModel : inférence
+MLInference --> TmpStorage : lit le fichier audio
+
+' ORM → DB
+PredModel --> DB : stocke prédictions
+PatModel --> DB : stocke patients
+UserModel --> DB : stocke médecins
+PredictRoute --> TmpStorage : sauvegarde temporaire
+
+note top of MLInference
+  ⚠️ Zone protégée
+  Ne pas modifier ml_inference.py
+  ni les fichiers modèle IA
+end note
+
+@enduml    

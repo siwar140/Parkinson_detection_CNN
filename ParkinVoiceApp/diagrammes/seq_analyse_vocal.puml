@@ -1,0 +1,138 @@
+@startuml Sequence_Analyse
+skinparam backgroundColor #FAFAFA
+skinparam SequenceArrowColor #4B5563
+skinparam SequenceLifeLineBorderColor #6366F1
+skinparam SequenceParticipantBackgroundColor #EEF2FF
+skinparam SequenceParticipantBorderColor #6366F1
+skinparam SequenceGroupBorderColor #D1D5DB
+skinparam NoteBackgroundColor #FFF7ED
+skinparam NoteBorderColor #F59E0B
+
+title Diagramme de Séquence — Analyse Vocale & Partage Résultat
+
+actor "Médecin" as Doctor
+participant "Consultation.jsx\n(Frontend)" as UI
+participant "api.js\n(Service)" as API
+participant "FastAPI\n/predict" as Backend
+participant "ml_inference.py\n[IA - PROTÉGÉ]" as ML
+participant "Base de données\n(SQLite)" as DB
+actor "Patient" as Patient
+
+== 1. Saisie et configuration ==
+
+Doctor -> UI : Ouvre la page Consultation
+UI -> API : getPatients()
+API -> Backend : GET /patients (JWT)
+Backend -> DB : SELECT patients WHERE doctor_id = ...
+DB --> Backend : Liste patients
+Backend --> API : [ {id, first_name, last_name, has_account} ]
+API --> UI : patients[]
+UI --> Doctor : Affiche la liste déroulante des patients
+
+Doctor -> UI : Sélectionne un patient
+UI -> UI : Vérifie patient.has_account
+alt patient.has_account = true
+  UI --> Doctor : Badge vert "Compte actif — résultats partageables"
+else patient.has_account = false
+  UI --> Doctor : Badge gris "Pas de compte actif"
+end
+
+Doctor -> UI : Choisit source audio (Micro / Fichier)
+
+== 2a. Enregistrement via Microphone ==
+
+group Enregistrement Micro [inputMode = 'mic']
+  Doctor -> UI : Clique "Démarrer l'enregistrement"
+  UI -> UI : navigator.mediaDevices.getUserMedia()
+  UI -> UI : Démarre MediaRecorder + visualiseur Canvas
+  UI --> Doctor : Affiche timer + visualiseur de fréquences
+  Doctor -> UI : Clique "Arrêter"
+  UI -> UI : mediaRecorder.stop()
+  UI -> UI : audioUtils.convertToWav(blob)
+  UI --> Doctor : Aperçu audio disponible (lecture possible)
+end
+
+== 2b. Téléversement fichier ==
+
+group Upload Fichier [inputMode = 'file']
+  Doctor -> UI : Sélectionne un fichier (WAV/MP3/OGG)
+  UI -> UI : Validation extension
+  UI --> Doctor : Badge vert "Fichier prêt"
+end
+
+== 3. Saisie notes cliniques ==
+
+Doctor -> UI : Saisit les observations médicales (textarea)
+
+== 4. Lancement de l'analyse ==
+
+Doctor -> UI : Clique "Lancer le Diagnostic IA & Biométrique"
+UI -> UI : setLoading(true)
+UI -> API : predictAudio(audioFile, patientId, patientName, notes)
+API -> Backend : POST /predict\nContent-Type: multipart/form-data\n{file, patient_id, patient_name, notes, JWT}
+
+Backend -> Backend : Vérifie JWT (get_current_user)
+Backend -> Backend : Valide extension fichier
+Backend -> Backend : Sauvegarde temporaire dans /tmp/
+Backend -> Backend : Vérifie taille ≤ 50 Mo
+
+Backend -> ML : predict(tmp_path)
+note right of ML
+  ⚠️ NE PAS MODIFIER
+  1. Charge le fichier audio (librosa)
+  2. Extrait features acoustiques
+     (MFCC, Jitter, Shimmer, HNR, F0)
+  3. Inférence modèle CNN
+  4. Retourne { prediction, confidence,
+     probability, details }
+end note
+ML --> Backend : { prediction: "Malade"|"Sain",\n  confidence: 0.92,\n  probability: 0.08,\n  details: { f0, jitter, shimmer, hnr } }
+
+Backend -> DB : SELECT patient WHERE id = patient_id
+DB --> Backend : Patient { hashed_password, is_active }
+Backend -> Backend : has_account = (hashed_password != null AND is_active)
+
+Backend -> DB : INSERT INTO predictions\n(doctor_id, patient_id, result, confidence,\nfile_name, notes, is_shared_with_patient=False)
+DB --> Backend : prediction_entry { id: 42 }
+
+Backend -> Backend : Supprime fichier temporaire
+Backend --> API : { id: 42, result, confidence,\n  has_account, is_shared_with_patient: false,\n  details: { acoustics } }
+
+API --> UI : Résultat complet
+UI -> UI : setPrediction(result), setLoading(false)
+
+== 5. Affichage du résultat ==
+
+UI --> Doctor : Affiche ResultCard :\n- Résultat : Sain / Présence de Signes (Parkinson)\n- Confiance : 92%\n- Biomarqueurs : F0, Jitter, Shimmer, HNR\n- Bouton "Partager avec le patient" (si has_account)\n- Bouton "Imprimer la fiche médicale"
+
+== 6. Partage du résultat avec le patient (optionnel) ==
+
+opt prediction.has_account = true AND !is_shared_with_patient
+  Doctor -> UI : Clique "Partager avec le patient"
+  UI -> API : sharePrediction(prediction.id)
+  API -> Backend : POST /prediction/42/share (JWT)
+  Backend -> Backend : Vérifie JWT & ownership
+  Backend -> DB : SELECT prediction WHERE id=42 AND doctor_id=current
+  DB --> Backend : prediction
+  Backend -> DB : SELECT patient WHERE id = prediction.patient_id
+  DB --> Backend : patient { hashed_password: "..." }
+  Backend -> DB : UPDATE predictions SET is_shared_with_patient=True WHERE id=42
+  DB --> Backend : OK
+  Backend --> API : { message: "Résultat transmis", is_shared_with_patient: true }
+  API --> UI : success
+  UI -> UI : setPrediction({ ...prev, is_shared_with_patient: true })
+  UI --> Doctor : Badge bleu "Transmis au profil patient"
+end
+
+== 7. Consultation par le patient ==
+
+Patient -> UI : Se connecte au portail patient
+UI -> API : GET /patient/predictions (JWT patient)
+API -> Backend : GET /patient/predictions
+Backend -> DB : SELECT predictions WHERE patient_id = current_patient.id\n  AND is_shared_with_patient = True
+DB --> Backend : [ prediction_42 ]
+Backend --> API : [ { result, confidence, details, created_at } ]
+API --> UI : Résultats partagés
+UI --> Patient : Affiche les analyses reçues du médecin
+
+@enduml

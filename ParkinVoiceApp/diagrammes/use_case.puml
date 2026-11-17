@@ -1,0 +1,105 @@
+@startuml usecase_parkinvoice
+
+left to right direction
+
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam nodesep 35
+skinparam ranksep 25
+skinparam actorStyle awesome
+
+title Diagramme de cas d'utilisation - ParkinVoice
+
+actor "Médecin" as Medecin
+actor "Patient" as Patient
+
+rectangle "Plateforme ParkinVoice" {
+
+    ' =====================================================
+    ' Ligne 1 : fonctionnalités principales du médecin
+    ' =====================================================
+
+    usecase "Se connecter" as UC_Login
+    usecase "Gérer les patients" as UC_ManagePatients
+    usecase "Réaliser une analyse vocale" as UC_Analyze
+    usecase "Consulter l'historique" as UC_History
+    usecase "Tableau de bord" as UC_Dashboard
+
+    ' =====================================================
+    ' Ligne 2 : détails des fonctionnalités
+    ' =====================================================
+
+    usecase "Créer un patient" as UC_CreatePatient
+    usecase "Modifier un patient" as UC_EditPatient
+    usecase "Supprimer un patient" as UC_DeletePatient
+    usecase "Téléverser un audio" as UC_UploadAudio
+    usecase "Consulter le résultat" as UC_ViewResult
+
+    ' =====================================================
+    ' Ligne 3 : fonctionnalités du patient
+    ' =====================================================
+
+    usecase "Consulter ses informations" as UC_ViewSelfInfo
+    usecase "Historique de ses analyses" as UC_ViewOwnHistory
+    usecase "Consulter les remarques" as UC_ViewRemarks
+    usecase "Gérer son profil" as UC_Profile
+    usecase "Réinitialiser le mot de passe" as UC_ResetPwd
+}
+
+' =========================================================
+' Relations Médecin
+' =========================================================
+
+Medecin --> UC_Login
+Medecin --> UC_ManagePatients
+Medecin --> UC_Analyze
+Medecin --> UC_History
+Medecin --> UC_Dashboard
+Medecin --> UC_Profile
+
+' Gestion des patients
+UC_ManagePatients .> UC_CreatePatient : <<include>>
+UC_ManagePatients .> UC_EditPatient : <<include>>
+UC_ManagePatients .> UC_DeletePatient : <<include>>
+
+' Analyse vocale
+UC_Analyze .> UC_UploadAudio : <<include>>
+UC_Analyze .> UC_ViewResult : <<include>>
+
+' Historique
+usecase "Filtrer par patient/date" as UC_FilterHistory
+UC_History .> UC_FilterHistory : <<extend>>
+
+' =========================================================
+' Relations Patient
+' =========================================================
+
+Patient --> UC_Login
+Patient --> UC_Profile
+Patient --> UC_ViewSelfInfo
+Patient --> UC_ViewOwnHistory
+Patient --> UC_ViewRemarks
+
+' Authentification
+UC_Login .> UC_ResetPwd : <<extend>>
+
+' =========================================================
+' FORCER UNE DISPOSITION HORIZONTALE
+' =========================================================
+
+UC_Login -[hidden]- UC_ManagePatients
+UC_ManagePatients -[hidden]- UC_Analyze
+UC_Analyze -[hidden]- UC_History
+UC_History -[hidden]- UC_Dashboard
+
+UC_CreatePatient -[hidden]- UC_EditPatient
+UC_EditPatient -[hidden]- UC_DeletePatient
+UC_DeletePatient -[hidden]- UC_UploadAudio
+UC_UploadAudio -[hidden]- UC_ViewResult
+
+UC_ViewSelfInfo -[hidden]- UC_ViewOwnHistory
+UC_ViewOwnHistory -[hidden]- UC_ViewRemarks
+UC_ViewRemarks -[hidden]- UC_Profile
+UC_Profile -[hidden]- UC_ResetPwd
+
+@enduml

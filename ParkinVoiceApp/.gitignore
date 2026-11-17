@@ -1,0 +1,101 @@
+# ============================================================
+# DOCKER
+# ============================================================
+.env
+.env.local
+.env.production
+docker-compose.override.yml
+
+# ============================================================
+# MODÈLES IA - Règles générales
+# ============================================================
+# Ignorer par défaut TOUS les fichiers modèles (volumineux)
+backend/models_ia/*.h5
+backend/models_ia/*.keras
+backend/models_ia/*.pkl
+
+# MAIS autoriser explicitement le modèle legacy utilisé en production
+!backend/models_ia/best_model_cnn_legacy.h5
+
+# ============================================================
+# UPLOADS (fichiers audio des patients)
+# ============================================================
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# ============================================================
+# FICHIERS TEMPORAIRES / GÉNÉRÉS
+# ============================================================
+backend/models_ia/*_patched.keras
+backend/models_ia/*_v2.keras
+backend/patch_model.py
+Dockerfile.legacy
+
+# ============================================================
+# BACKUPS / BASES DE DONNÉES
+# ============================================================
+*.db
+*.sqlite3
+backup_*.sql
+backups/
+
+# ============================================================
+# LOGS / CACHE
+# ============================================================
+*.log
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+# ============================================================
+# ENVIRONNEMENTS VIRTUELS
+# ============================================================
+.venv/
+venv/
+.venv_legacy/
+
+# ============================================================
+# NODE
+# ============================================================
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ============================================================
+# IDE / OS
+# ============================================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+# Secrets and environment files
+.env.*
+!.env.example
+
+# Database backups
+backup_*.sql
+*.db
+*.sqlite3
+
+# Medical data and audio
+uploads/
+datasets/
+data/
+*.wav
+*.mp3
+*.flac
+
+# Python environments
+venv/
+env/
+__pycache__/
+
+# Frontend dependencies
+frontend/node_modules/
+node_modules/
+
+# Temporary files
+*.log
+temp/
+tmp/
