@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Medical data
+*.wav
+*.mp3
+*.flac
+datasets/
+data/
+uploads/
+
+# Databases and backups
+*.db
+*.sqlite3
+backup_*.sql
+backups/
+
+# Node
+node_modules/
+dist/
+build/
+
+# Temporary files
+*.log
+.DS_Store
+Thumbs.db
+
+# IA models
+*.h5
+*.keras
+*.pkl
+
+# Keep only the production legacy model
+!ParkinVoiceApp/backend/models_ia/best_model_cnn_legacy.h5
+
+# Allow production model
+!ParkinVoiceApp/backend/
+!ParkinVoiceApp/backend/models_ia/
+!ParkinVoiceApp/backend/models_ia/best_model_cnn_legacy.h5
